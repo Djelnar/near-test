@@ -16,7 +16,10 @@ async function renderWallet(wallet: nearAPI.WalletConnection) {
 
   const walletAccountBalanceObj = await wallet.account().getAccountBalance()
   const walletAccountBalanceNode = document.createElement('h1')
-  walletAccountBalanceNode.innerHTML = utils.format.formatNearAmount(walletAccountBalanceObj.available, 0)
+  const balanceFormatted = utils.format.formatNearAmount(walletAccountBalanceObj.available, 0)
+
+  walletAccountBalanceNode.innerHTML = `${balanceFormatted} NEAR`
+
   appNode?.appendChild(walletAccountBalanceNode)
 }
 
