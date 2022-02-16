@@ -1,12 +1,98 @@
 import * as nearAPI from 'near-api-js'
 import './index.css'
 
-const {keyStores, connect, WalletConnection, utils} = nearAPI
+const {keyStores, connect, WalletConnection, Contract, utils} = nearAPI
 
 const APP_KEY_PREFIX = 'cat'
 const CONTRACT_ID = 'app_2.spin_swap.testnet'
 
 const appNode = document.getElementById('app')
+
+type Market = {
+  id: number
+  base: {
+    ticker: string
+  }
+  quote: {
+    ticker: string
+  }
+}
+
+type Order = {
+  price: number
+  quantity: number
+}
+
+type ContractMethods = {
+  view_market: (props: {market_id: number}) => Promise<{ask_orders: Order[]; bid_orders: Order[]}>
+  markets: (props: {}) => Promise<Market[]>
+}
+
+const formatNumber = (value: number, fracDigits = 4) =>
+  utils.format.formatNearAmount(value.toLocaleString('fullwide', {useGrouping: false}), fracDigits)
+const normalizeNumber = (value: number) => {
+  return +utils.format.formatNearAmount(value.toLocaleString('fullwide', {useGrouping: false})).replace(/\,/g, '')
+}
+
+async function renderOrderBook(marketId: string, contract: ContractMethods, currentMarket: Market) {
+  const marketsSelect = document.querySelector<HTMLSelectElement>('select[name=markets]')
+  marketsSelect!.disabled = true
+
+  const orderBookNode = document.querySelector('.orderBook')
+
+  const res = await contract.view_market({
+    market_id: +marketId,
+  })
+
+  const spread = Math.abs(res.ask_orders[0].price - res.bid_orders[0].price)
+
+  const askOrdersReversed = res.ask_orders.slice().reverse()
+  const table = `
+    <table>
+      <thead>
+        <th class="leftColumn">Price (${currentMarket.quote.ticker})</th>
+        <th class="rightColumn">Size (${currentMarket.base.ticker})</th>
+        <th class="rightColumn">Total</th>
+      </thead>
+      ${askOrdersReversed
+        .map(
+          (order) => `<tr>
+            <td class="leftColumn askOrder">${formatNumber(order.price)}</td>
+            <td class="rightColumn">${formatNumber(order.quantity)}</td>
+            <td class="rightColumn">${(normalizeNumber(order.price) * normalizeNumber(order.quantity)).toLocaleString(
+              'en-US',
+              {
+                maximumFractionDigits: 2,
+              },
+            )}</td>
+          </tr>`,
+        )
+        .join('')}
+      <thead>
+        <th class="leftColumn">${formatNumber(spread)}</th>
+        <th class="rightColumn">Spread</th>
+        <th class="rightColumn">Total</th>
+      </thead>
+      ${res.bid_orders
+        .map(
+          (order) => `<tr>
+            <td class="leftColumn bidOrder">${formatNumber(order.price)}</td>
+            <td class="rightColumn">${formatNumber(order.quantity)}</td>
+            <td class="rightColumn">${(normalizeNumber(order.price) * normalizeNumber(order.quantity)).toLocaleString(
+              'en-US',
+              {
+                maximumFractionDigits: 2,
+              },
+            )}</td>
+          </tr>`,
+        )
+        .join('')}
+    </table>
+  `
+
+  orderBookNode!.innerHTML = table
+  marketsSelect!.disabled = false
+}
 
 async function renderWallet(wallet: nearAPI.WalletConnection) {
   const walletAccountId = wallet.getAccountId()
@@ -21,6 +107,36 @@ async function renderWallet(wallet: nearAPI.WalletConnection) {
   walletAccountBalanceNode.innerHTML = `${balanceFormatted} NEAR`
 
   appNode?.appendChild(walletAccountBalanceNode)
+
+  const account = wallet.account()
+
+  const contract = new Contract(account, CONTRACT_ID, {
+    viewMethods: ['markets', 'view_market'],
+    changeMethods: [],
+  }) as any as ContractMethods
+
+  const markets: Market[] = await contract.markets({})
+
+  const selectRoot = document.createElement('select')
+  selectRoot.name = 'markets'
+  markets.map((m) => {
+    const option = document.createElement('option')
+    option.value = `${m.id}`
+    option.innerHTML = `${m.base.ticker} / ${m.quote.ticker}`
+    selectRoot.appendChild(option)
+  })
+
+  appNode?.appendChild(selectRoot)
+
+  const orderBookNode = document.createElement('div')
+  orderBookNode.className = 'orderBook'
+  appNode?.appendChild(orderBookNode)
+
+  renderOrderBook(selectRoot.value, contract, markets.find((m) => m.id === +selectRoot.value)!)
+
+  selectRoot.addEventListener('change', () => {
+    renderOrderBook(selectRoot.value, contract, markets.find((m) => m.id === +selectRoot.value)!)
+  })
 }
 
 async function start() {

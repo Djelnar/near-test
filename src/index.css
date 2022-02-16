@@ -1,3 +1,7 @@
+html {
+  font-family: sans-serif;
+}
+
 #app {
   position: relative;
   width: 100%;
@@ -9,4 +13,35 @@
   right: 16px;
   top: 16px;
   font-size: 24px;
+}
+
+table {
+  margin-top: 16px;
+  background-color: #14161d;
+  border-spacing: 10px;
+}
+
+thead {
+  color: #7c8094;
+}
+
+td {
+  font-family: monospace;
+  color: #fff;
+  font-size: 16px;
+  text-align: right;
+}
+
+.leftColumn {
+  text-align: left;
+}
+.rightColumn {
+  text-align: right;
+}
+
+.askOrder {
+  color: #ed6d90;
+}
+.bidOrder {
+  color: #98f5cc;
 }
