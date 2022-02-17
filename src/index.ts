@@ -44,7 +44,11 @@ async function renderOrderBook(marketId: string, contract: ContractMethods, curr
     market_id: +marketId,
   })
 
-  const spread = Math.abs(res.ask_orders[0].price - res.bid_orders[0].price)
+  const AL = res.ask_orders[0].price
+  const BH = res.bid_orders[0].price
+
+  const spread = AL - BH
+  const spreadPercentage = (spread / AL) * 100
 
   const askOrdersReversed = res.ask_orders.slice().reverse()
   const table = `
@@ -71,7 +75,7 @@ async function renderOrderBook(marketId: string, contract: ContractMethods, curr
       <thead>
         <th class="leftColumn">${formatNumber(spread)}</th>
         <th class="rightColumn">Spread</th>
-        <th class="rightColumn">Total</th>
+        <th class="rightColumn">${spreadPercentage}%</th>
       </thead>
       ${res.bid_orders
         .map(
